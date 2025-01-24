@@ -1,12 +1,11 @@
 "use client"
 
 import { useState } from "react"
-import DriverProfile from "@/components/profile/DriverProfile"
 import DriverDashboard from "@/components/dashboards/DriverDashboard"
 import { mockDriverData } from "@/components/utils/mockData"
 import { DashboardHeader } from "@/components/layout/DashboardHeader"
 
-export default function DriverProfilePage() {
+export default function DriverDashboardPage() {
   const [activeTab, setActiveTab] = useState("dashboard")
   const [driverData, setDriverData] = useState(mockDriverData)
 
@@ -18,10 +17,7 @@ export default function DriverProfilePage() {
         onTabChange={setActiveTab}
         notificationCount={3}
       />
-
-      <main className="container mx-auto px-4 py-0">
-        {activeTab === "dashboard" ? <DriverDashboard driver={driverData} /> : <DriverProfile driver={driverData} />}
-      </main>
+      <DriverDashboard driver={driverData} />
     </div>
   )
 }

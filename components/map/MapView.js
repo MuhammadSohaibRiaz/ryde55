@@ -1,38 +1,34 @@
 "use client"
 
-import { useEffect, useRef, useState, useCallback } from "react"
+import { useEffect, useRef, useState } from "react"
 import { Loader } from "@googlemaps/js-api-loader"
-import { motion } from "framer-motion"
-import { MAPS_CONFIG } from "@/config/maps"
-import { User } from "lucide-react"
-import Link from "next/link"
+import { MAPS_CONFIG } from "./maps"
 
-export default function MapView({
-  onLocationSelect,
-  pickup,
-  dropoff,
-  bookingState,
-  selectionMode = false,
-  driverLocation,
-  onRouteCalculated,
-  userLocation,
-}) {
+export default function MapView({ onRouteCalculated, onError, pickup, dropoff, isAdmin = false }) {
   const mapRef = useRef(null)
   const [map, setMap] = useState(null)
-  const [mapLoaded, setMapLoaded] = useState(false)
   const markersRef = useRef({
     pickup: null,
     dropoff: null,
-    driver: null,
-    selection: null,
+    cars: [],
   })
-  const directionsRendererRef = useRef(null)
-  const autocompleteService = useRef(null)
-  const placesService = useRef(null)
-  const [showUserProfile, setShowUserProfile] = useState(false)
+  const simulatedCarsRef = useRef([])
+  // Initialize with default value, will update from localStorage after mount
+  const [numSimulatedCars, setNumSimulatedCars] = useState(MAPS_CONFIG.simulatedCars.default)
+  const intervalsRef = useRef([])
 
+  // Safely access localStorage after mount
   useEffect(() => {
-    if (!mapRef.current || mapLoaded) return
+    const storedCars =
+      typeof window !== "undefined" ? Number.parseInt(window.localStorage.getItem("simulatedCars")) : null
+    if (storedCars !== null) {
+      setNumSimulatedCars(storedCars)
+    }
+  }, [])
+
+  // Initialize map
+  useEffect(() => {
+    if (!mapRef.current) return
 
     const loader = new Loader({
       apiKey: MAPS_CONFIG.apiKey,
@@ -45,66 +41,31 @@ export default function MapView({
         center: MAPS_CONFIG.defaultCenter,
         zoom: MAPS_CONFIG.defaultZoom,
         ...MAPS_CONFIG.mapOptions,
-        disableDefaultUI: selectionMode,
       })
 
-      autocompleteService.current = new google.maps.places.AutocompleteService()
-      placesService.current = new google.maps.places.PlacesService(mapInstance)
+      // Initialize services
+      const directionsService = new google.maps.DirectionsService()
+      const directionsRenderer = new google.maps.DirectionsRenderer({
+        map: mapInstance,
+        suppressMarkers: true,
+        polylineOptions: {
+          strokeColor: "#FFA500",
+          strokeWeight: 4,
+        },
+      })
 
-      if (!selectionMode) {
-        directionsRendererRef.current = new google.maps.DirectionsRenderer({
-          map: mapInstance,
-          suppressMarkers: true,
-          polylineOptions: {
-            strokeColor: "#FFA500",
-            strokeWeight: 4,
-          },
-        })
-      }
+      // Initialize simulated cars
+      initializeSimulatedCars(google, mapInstance)
 
-      if (selectionMode) {
-        const marker = new google.maps.Marker({
-          map: mapInstance,
-          position: mapInstance.getCenter(),
-          icon: {
-            url: "/marker.png",
-            scaledSize: new google.maps.Size(40, 40),
-            anchor: new google.maps.Point(20, 40),
-          },
-        })
-
-        markersRef.current.selection = marker
-
-        mapInstance.addListener("center_changed", () => {
-          marker.setPosition(mapInstance.getCenter())
-        })
-
-        mapInstance.addListener("idle", () => {
-          reverseGeocode(mapInstance.getCenter())
-        })
-      }
-
-      // Add user marker
-      if (!selectionMode && userLocation) {
-        const userMarker = new google.maps.Marker({
-          map: mapInstance,
-          position: userLocation,
-          icon: {
-            url: "/user-marker.png", // You'll need to add this asset
-            scaledSize: new google.maps.Size(40, 40),
-            anchor: new google.maps.Point(20, 20),
-          },
-          clickable: true,
-        })
-
-        userMarker.addListener("click", () => {
-          setShowUserProfile(true)
-        })
-      }
-
+      // Store references
       setMap(mapInstance)
-      setMapLoaded(true)
 
+      // Handle route calculations
+      if (pickup && dropoff) {
+        calculateRoute(google, mapInstance, directionsService, directionsRenderer)
+      }
+
+      // Get user's location
       if (navigator.geolocation) {
         navigator.geolocation.getCurrentPosition(
           (position) => {
@@ -113,10 +74,6 @@ export default function MapView({
               lng: position.coords.longitude,
             }
             mapInstance.setCenter(pos)
-            if (selectionMode && markersRef.current.selection) {
-              markersRef.current.selection.setPosition(pos)
-              reverseGeocode(pos)
-            }
           },
           () => {
             console.warn("Geolocation failed")
@@ -126,132 +83,141 @@ export default function MapView({
     })
 
     return () => {
-      Object.values(markersRef.current).forEach((marker) => marker?.setMap(null))
-      if (directionsRendererRef.current) {
-        directionsRendererRef.current.setMap(null)
+      // Cleanup markers and intervals
+      simulatedCarsRef.current.forEach((car) => car?.setMap(null))
+      intervalsRef.current.forEach(clearInterval)
+    }
+  }, [pickup, dropoff])
+
+  // Helper function to get random location within bounds
+  const getRandomLocation = () => {
+    return {
+      lat: MAPS_CONFIG.defaultCenter.lat + (Math.random() - 0.5) * 0.1,
+      lng: MAPS_CONFIG.defaultCenter.lng + (Math.random() - 0.5) * 0.1,
+    }
+  }
+
+  // Helper function to get random location within a radius
+  const getRandomLocationNearby = (center) => {
+    const radius = 0.01 // Smaller radius for more realistic movement
+    const lat = center.lat + (Math.random() - 0.5) * radius * 2
+    const lng = center.lng + (Math.random() - 0.5) * radius * 2
+    return { lat, lng }
+  }
+
+  // Initialize and manage simulated cars
+  const initializeSimulatedCars = (google, mapInstance) => {
+    // Clear existing cars and intervals
+    simulatedCarsRef.current.forEach((car) => car.setMap(null))
+    intervalsRef.current.forEach(clearInterval)
+    simulatedCarsRef.current = []
+    intervalsRef.current = []
+
+    // Create new cars
+    const numCars = isAdmin ? 12 : 8 // More cars visible in admin view
+    for (let i = 0; i < numCars; i++) {
+      const position = getRandomLocation()
+      const car = new google.maps.Marker({
+        position,
+        map: mapInstance,
+        icon: {
+          url: "/image.png",
+          scaledSize: new google.maps.Size(32, 32),
+          anchor: new google.maps.Point(16, 16),
+        },
+      })
+      simulatedCarsRef.current.push(car)
+
+      // Individual interval for each car for more natural movement
+      const interval = setInterval(
+        () => {
+          const currentPos = car.getPosition()
+          const newPos = getRandomLocationNearby({
+            lat: currentPos.lat(),
+            lng: currentPos.lng(),
+          })
+          animateMarkerTo(google, car, newPos)
+        },
+        5000 + Math.random() * 2000,
+      ) // Add randomness to intervals
+
+      intervalsRef.current.push(interval)
+    }
+  }
+
+  // Animate marker movement with easing
+  const animateMarkerTo = (google, marker, newPosition) => {
+    const startPosition = marker.getPosition()
+    const frames = 90 // More frames for smoother animation
+    const duration = 3000 // 3 seconds for smoother movement
+
+    const delta = {
+      lat: (newPosition.lat - startPosition.lat()) / frames,
+      lng: (newPosition.lng - startPosition.lng()) / frames,
+    }
+
+    let frame = 0
+
+    const animate = () => {
+      frame++
+
+      // Add easing for smoother movement
+      const progress = frame / frames
+      const easing = 1 - Math.pow(1 - progress, 3)
+
+      const lat = startPosition.lat() + delta.lat * frames * easing
+      const lng = startPosition.lng() + delta.lng * frames * easing
+
+      marker.setPosition(new google.maps.LatLng(lat, lng))
+
+      if (frame < frames) {
+        requestAnimationFrame(animate)
       }
     }
-  }, [mapLoaded, selectionMode, userLocation])
 
-  useEffect(() => {
-    if (!map || !pickup || !dropoff) return
+    animate()
+  }
 
-    const directionsService = new google.maps.DirectionsService()
-
+  const calculateRoute = (google, mapInstance, directionsService, directionsRenderer) => {
     directionsService.route(
       {
-        origin: pickup.coordinates,
-        destination: dropoff.coordinates,
+        origin: pickup,
+        destination: dropoff,
         travelMode: google.maps.TravelMode.DRIVING,
       },
       (result, status) => {
         if (status === "OK") {
-          directionsRendererRef.current.setDirections(result)
-
+          directionsRenderer.setDirections(result)
           const route = result.routes[0]
           const leg = route.legs[0]
+
           onRouteCalculated?.({
             distance: leg.distance.text,
             duration: leg.duration.text,
             fare: calculateFare(leg.distance.value),
             pickupEta: Math.ceil((leg.duration.value / 60) * 0.3),
           })
+        } else {
+          onError?.(new Error("Could not calculate route"))
         }
       },
     )
-  }, [map, pickup, dropoff])
+  }
 
-  useEffect(() => {
-    if (!map || !driverLocation) return
-
-    if (!markersRef.current.driver) {
-      markersRef.current.driver = new google.maps.Marker({
-        map,
-        icon: {
-          url: "/car-icon.png",
-          scaledSize: new google.maps.Size(32, 32),
-          anchor: new google.maps.Point(16, 16),
-        },
-      })
+  const handleSimulatedCarsChange = (value) => {
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem("simulatedCars", value.toString())
     }
-
-    markersRef.current.driver.setPosition(driverLocation)
-  }, [map, driverLocation])
-
-  const reverseGeocode = useCallback(
-    (latLng) => {
-      if (!map) return
-
-      const geocoder = new google.maps.Geocoder()
-      geocoder.geocode({ location: latLng }, (results, status) => {
-        if (status === "OK" && results[0]) {
-          onLocationSelect?.({
-            address: results[0].formatted_address,
-            coordinates: {
-              lat: latLng.lat(),
-              lng: latLng.lng(),
-            },
-          })
-        }
-      })
-    },
-    [map, onLocationSelect],
-  )
+    setNumSimulatedCars(value)
+    // Reinitialize cars with new count
+    if (map) {
+      initializeSimulatedCars(window.google, map)
+    }
+  }
 
   return (
-    <div className="relative h-full w-full">
-      <div ref={mapRef} className="h-full w-full" />
-
-      {/* User Profile Quick Access */}
-      <Link
-        href="/profile"
-        className="absolute top-4 right-4 z-30 p-3 bg-white rounded-full shadow-lg hover:bg-gray-50 transition-colors"
-      >
-        <User className="w-6 h-6 text-gray-700" />
-      </Link>
-
-      {showUserProfile && (
-        <div className="absolute bottom-24 right-4 z-30 bg-white rounded-lg shadow-lg p-4 w-64">
-          <div className="flex items-center space-x-3 mb-3">
-            <img src="/user.png" alt="User" className="w-12 h-12 rounded-full" />
-            <div>
-              <h3 className="font-semibold">John Doe</h3>
-              <p className="text-sm text-gray-500">42 rides completed</p>
-            </div>
-          </div>
-          <Link
-            href="/profile"
-            className="block w-full py-2 px-4 bg-orange-500 text-white rounded-lg text-center hover:bg-orange-600 transition-colors"
-          >
-            View Full Profile
-          </Link>
-          <button
-            onClick={() => setShowUserProfile(false)}
-            className="mt-2 w-full py-2 px-4 border border-gray-300 rounded-lg text-center hover:bg-gray-50 transition-colors"
-          >
-            Close
-          </button>
-        </div>
-      )}
-
-      {bookingState === "finding_drivers" && (
-        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-          <motion.div
-            className="rounded-full bg-[#FFA500]/20"
-            initial={{ width: 50, height: 50, opacity: 1 }}
-            animate={{
-              width: 200,
-              height: 200,
-              opacity: 0,
-            }}
-            transition={{
-              duration: 2,
-              repeat: Number.POSITIVE_INFINITY,
-              ease: "easeOut",
-            }}
-          />
-        </div>
-      )}
+    <div className="relative w-full h-full">
+      <div ref={mapRef} className="w-full h-full" />
     </div>
   )
 }
@@ -260,6 +226,6 @@ function calculateFare(distanceInMeters) {
   const distanceInMiles = distanceInMeters / 1609.34
   const baseRate = 2.5
   const minimumFare = 5
-  return `£${Math.max(minimumFare, baseRate * distanceInMiles).toFixed(2)}`
+  return Math.max(minimumFare, baseRate * distanceInMiles).toFixed(2)
 }
 

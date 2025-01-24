@@ -2,79 +2,13 @@
 
 import { useState } from "react"
 import Image from "next/image"
-import { Star, Shield, Clock, FileText, AlertTriangle } from "lucide-react"
-import NotificationBell from "../NotificationBell"
-import Link from "next/link"
+import { Star, Shield, Clock, FileText } from "lucide-react"
 import { Button } from "@/components/ui/buttons"
+import Link from "next/link"
 import { ArrowLeft } from "lucide-react"
+import NotificationBell from "../NotificationBell"
 
-export default function DriverProfile() {
-  const [driver, setDriver] = useState({
-    name: "Jane Smith",
-    email: "jane.smith@example.com",
-    phone: "+1 (555) 987-6543",
-    avatar: "/driver.png",
-    rating: 4.9,
-    ridesCompleted: 1024,
-    status: "active", // active, offline, suspended
-    vehicle: {
-      make: "Toyota",
-      model: "Camry",
-      year: 2020,
-      color: "Silver",
-      licensePlate: "ABC 123",
-      insurance: {
-        provider: "SafeAuto",
-        policyNumber: "SA123456789",
-        expiryDate: "2025-12-31",
-      },
-    },
-    documents: [
-      {
-        type: "Driver's License",
-        number: "DL123456789",
-        expiryDate: "2026-01-01",
-        status: "approved",
-        lastVerified: "2024-12-01",
-      },
-      {
-        type: "Vehicle Registration",
-        number: "VR987654321",
-        expiryDate: "2025-06-30",
-        status: "approved",
-        lastVerified: "2024-12-01",
-      },
-      {
-        type: "Insurance Card",
-        number: "IC456789123",
-        expiryDate: "2025-12-31",
-        status: "approved",
-        lastVerified: "2024-12-01",
-      },
-    ],
-    earnings: {
-      total: 15780,
-      lastWeek: 850,
-      currentWeek: 425,
-      pending: 150,
-      stats: {
-        totalTrips: 1024,
-        averageRating: 4.9,
-        completionRate: 98,
-        cancellationRate: 2,
-      },
-    },
-    schedule: {
-      monday: { active: true, hours: "9:00 AM - 5:00 PM" },
-      tuesday: { active: true, hours: "9:00 AM - 5:00 PM" },
-      wednesday: { active: true, hours: "9:00 AM - 5:00 PM" },
-      thursday: { active: true, hours: "9:00 AM - 5:00 PM" },
-      friday: { active: true, hours: "9:00 AM - 5:00 PM" },
-      saturday: { active: false, hours: "" },
-      sunday: { active: false, hours: "" },
-    },
-  })
-
+export default function DriverProfile({ driver }) {
   const [isEditing, setIsEditing] = useState(false)
   const [showDocuments, setShowDocuments] = useState(false)
   const [showSchedule, setShowSchedule] = useState(false)
@@ -88,77 +22,75 @@ export default function DriverProfile() {
     // Here you would typically send the updated driver data to your backend
   }
 
-  const handleStatusToggle = () => {
-    setDriver((prev) => ({
-      ...prev,
-      status: prev.status === "active" ? "offline" : "active",
-    }))
-  }
-
   const handleDocumentUpload = (type) => {
     // In a real app, this would open a file picker and handle document upload
     alert(`Upload new ${type} document`)
   }
 
-  const getStatusColor = (status) => {
-    switch (status) {
-      case "approved":
-        return "text-green-600"
-      case "pending":
-        return "text-yellow-600"
-      case "rejected":
-        return "text-red-600"
-      default:
-        return "text-gray-600"
-    }
+  // Safely access nested properties
+  const stats = driver?.earnings?.stats || {
+    completionRate: 0,
+    averageRating: 0,
+    cancellationRate: 0,
   }
 
   return (
-    <div className="container mx-auto p-4 max-w-4xl">
-      <div className="flex items-center justify-between mb-6">
-        <Link href="/main">
-          <Button variant="outline" className="flex items-center space-x-2">
-            <ArrowLeft className="w-4 h-4" />
-            <span>Back</span>
-          </Button>
-        </Link>
-        <h1 className="text-2xl font-bold text-gray-800">Driver Profile</h1>
-        <NotificationBell />
-      </div>
+    <div className="max-w-4xl mx-auto">
+      
       <div className="bg-white shadow-lg rounded-lg overflow-hidden">
         <div className="p-4 sm:p-6 md:p-8">
           {/* Header Section */}
           <div className="flex flex-col sm:flex-row items-center justify-between mb-6">
+            {/* Profile image and info section */}
             <div className="flex flex-col sm:flex-row items-center space-y-4 sm:space-y-0 sm:space-x-4 mb-4 sm:mb-0">
-              <Image
-                src={driver.avatar || "/placeholder.svg"}
-                alt={driver.name}
-                width={80}
-                height={80}
-                className="rounded-full"
-              />
+              <div className="relative w-32 h-32">
+                <Image
+                  // src={driver?.avatar || "/placeholder.svg"}
+                  src= "/user.png"
+                
+                  alt={driver?.name || "Driver"}
+                  fill
+                  className="rounded-full object-cover border-4 border-white shadow-lg"
+                />
+                {isEditing && (
+                  <button className="absolute bottom-0 right-0 bg-purple-600 text-white p-2 rounded-full shadow-lg">
+                    <FileText className="w-4 h-4" />
+                  </button>
+                )}
+              </div>
               <div className="text-center sm:text-left">
-                <h2 className="text-xl font-semibold text-gray-800">{driver.name}</h2>
+                <h2 className="text-2xl font-bold text-gray-800">{driver?.name}</h2>
                 <div className="flex items-center justify-center sm:justify-start mt-1">
                   <Star className="w-5 h-5 text-yellow-400 fill-current" />
-                  <span className="ml-1 text-gray-600">{driver.rating}</span>
+                  <span className="ml-1 text-gray-600">{driver?.rating} Rating</span>
                 </div>
-                <p className="text-gray-600 mt-1">{driver.ridesCompleted} rides completed</p>
+                <div className="flex items-center justify-center sm:justify-start mt-1">
+                  <Clock className="w-5 h-5 text-gray-400" />
+                  <span className="ml-1 text-gray-600">{driver?.ridesCompleted} Rides</span>
+                </div>
               </div>
             </div>
+
+            {/* Action Buttons */}
             <div className="flex flex-col sm:flex-row items-center space-y-2 sm:space-y-0 sm:space-x-2">
-              {!isEditing && (
-                <button
-                  onClick={handleEdit}
-                  className="px-4 py-2 bg-orange-500 text-white rounded hover:bg-orange-600 transition-colors w-full sm:w-auto"
-                >
+              {!isEditing ? (
+                <Button onClick={handleEdit} className="w-full sm:w-auto bg-orange-500 hover:bg-orange-600 text-white">
                   Edit Profile
-                </button>
+                </Button>
+              ) : (
+                <div className="flex gap-2">
+                  <Button variant="outline" onClick={() => setIsEditing(false)}>
+                    Cancel
+                  </Button>
+                  <Button onClick={handleSave} className="bg-orange-500 hover:bg-orange-600 text-white">
+                    Save Changes
+                  </Button>
+                </div>
               )}
             </div>
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Left Column - Performance */}
             <div className="lg:col-span-1">
               <div className="p-4 bg-gray-50 rounded-lg">
@@ -167,37 +99,31 @@ export default function DriverProfile() {
                   <div>
                     <div className="flex justify-between text-sm mb-1">
                       <span>Completion Rate</span>
-                      <span className="font-medium">{driver.earnings.stats.completionRate}%</span>
+                      <span className="font-medium">{stats.completionRate}%</span>
                     </div>
                     <div className="w-full bg-gray-200 rounded-full h-2">
-                      <div
-                        className="bg-green-500 h-2 rounded-full"
-                        style={{ width: `${driver.earnings.stats.completionRate}%` }}
-                      />
+                      <div className="bg-green-500 h-2 rounded-full" style={{ width: `${stats.completionRate}%` }} />
                     </div>
                   </div>
                   <div>
                     <div className="flex justify-between text-sm mb-1">
                       <span>Average Rating</span>
-                      <span className="font-medium">{driver.earnings.stats.averageRating}</span>
+                      <span className="font-medium">{stats.averageRating}</span>
                     </div>
                     <div className="w-full bg-gray-200 rounded-full h-2">
                       <div
                         className="bg-yellow-400 h-2 rounded-full"
-                        style={{ width: `${(driver.earnings.stats.averageRating / 5) * 100}%` }}
+                        style={{ width: `${(stats.averageRating / 5) * 100}%` }}
                       />
                     </div>
                   </div>
                   <div>
                     <div className="flex justify-between text-sm mb-1">
                       <span>Cancellation Rate</span>
-                      <span className="font-medium">{driver.earnings.stats.cancellationRate}%</span>
+                      <span className="font-medium">{stats.cancellationRate}%</span>
                     </div>
                     <div className="w-full bg-gray-200 rounded-full h-2">
-                      <div
-                        className="bg-red-500 h-2 rounded-full"
-                        style={{ width: `${driver.earnings.stats.cancellationRate}%` }}
-                      />
+                      <div className="bg-red-500 h-2 rounded-full" style={{ width: `${stats.cancellationRate}%` }} />
                     </div>
                   </div>
                 </div>
@@ -212,32 +138,22 @@ export default function DriverProfile() {
                   <h3 className="text-lg font-semibold text-gray-800 mb-2">Vehicle Information</h3>
                   <div className="bg-gray-50 p-4 rounded">
                     <div className="grid grid-cols-2 gap-4">
-                      {Object.entries(driver.vehicle).map(([key, value]) => {
-                        if (typeof value === "object") return null
-                        return (
-                          <div key={key}>
-                            <label className="text-sm text-gray-600 capitalize">{key}</label>
-                            {isEditing ? (
-                              <input
-                                type="text"
-                                value={value}
-                                onChange={(e) => {
-                                  setDriver((prev) => ({
-                                    ...prev,
-                                    vehicle: {
-                                      ...prev.vehicle,
-                                      [key]: e.target.value,
-                                    },
-                                  }))
-                                }}
-                                className="w-full p-2 border rounded focus:ring-2 focus:ring-orange-500"
-                              />
-                            ) : (
-                              <p className="font-medium">{value}</p>
-                            )}
-                          </div>
-                        )
-                      })}
+                      <div>
+                        <label className="text-sm text-gray-600">Make</label>
+                        <p className="font-medium">{driver.vehicle?.make}</p>
+                      </div>
+                      <div>
+                        <label className="text-sm text-gray-600">Model</label>
+                        <p className="font-medium">{driver.vehicle?.model}</p>
+                      </div>
+                      <div>
+                        <label className="text-sm text-gray-600">Year</label>
+                        <p className="font-medium">{driver.vehicle?.year}</p>
+                      </div>
+                      <div>
+                        <label className="text-sm text-gray-600">License Plate</label>
+                        <p className="font-medium">{driver.vehicle?.licensePlate}</p>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -257,7 +173,7 @@ export default function DriverProfile() {
                     <div className="space-y-3">
                       {driver.documents.map((doc, index) => (
                         <div key={index} className="bg-gray-50 p-4 rounded">
-                          <div className="flex justify-between items-start">
+                          <div className="flex justify-between items-center">
                             <div>
                               <h4 className="font-medium">{doc.type}</h4>
                               <p className="text-sm text-gray-600">#{doc.number}</p>
@@ -265,14 +181,11 @@ export default function DriverProfile() {
                                 Expires: {new Date(doc.expiryDate).toLocaleDateString()}
                               </p>
                             </div>
-                            <div className="text-right">
-                              <span className={`text-sm ${getStatusColor(doc.status)}`}>
-                                {doc.status.charAt(0).toUpperCase() + doc.status.slice(1)}
-                              </span>
-                              <p className="text-xs text-gray-500">
-                                Verified: {new Date(doc.lastVerified).toLocaleDateString()}
-                              </p>
-                            </div>
+                            <span
+                              className={`text-sm ${doc.status === "approved" ? "text-green-600" : "text-orange-600"}`}
+                            >
+                              {doc.status}
+                            </span>
                           </div>
                           {isEditing && (
                             <button
@@ -299,12 +212,12 @@ export default function DriverProfile() {
               <div className="bg-gray-50 p-4 rounded space-y-4">
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <p className="text-sm text-gray-600">Total Earnings</p>
-                    <p className="text-xl font-bold text-green-600">${driver.earnings.total.toLocaleString()}</p>
+                    <label className="text-sm text-gray-600">Today</label>
+                    <p className="text-2xl font-bold text-green-600">${driver.earnings?.today || 0}</p>
                   </div>
                   <div>
-                    <p className="text-sm text-gray-600">This Week</p>
-                    <p className="text-xl font-bold text-green-600">${driver.earnings.currentWeek.toLocaleString()}</p>
+                    <label className="text-sm text-gray-600">This Week</label>
+                    <p className="text-2xl font-bold text-green-600">${driver.earnings?.week || 0}</p>
                   </div>
                 </div>
                 <div>
@@ -339,23 +252,6 @@ export default function DriverProfile() {
               )}
             </div>
           </div>
-
-          {isEditing && (
-            <div className="mt-6 flex justify-end space-x-2">
-              <button
-                onClick={() => setIsEditing(false)}
-                className="px-4 py-2 border border-gray-300 rounded hover:bg-gray-50 transition-colors"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleSave}
-                className="px-4 py-2 bg-orange-500 text-white rounded hover:bg-orange-600 transition-colors"
-              >
-                Save Changes
-              </button>
-            </div>
-          )}
         </div>
       </div>
     </div>

@@ -34,10 +34,10 @@ export default function AdminDashboard() {
         <PaymentTable />
       </div>
 
-      <div className="bg-white shadow-sm rounded-lg p-6">
+      {/* <div className="bg-white shadow-sm rounded-lg p-6">
         <h2 className="text-xl font-semibold mb-4">Dynamic Pricing</h2>
         <PricingChart />
-      </div>
+      </div> */}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div className="bg-white shadow-sm rounded-lg p-6">
@@ -45,10 +45,10 @@ export default function AdminDashboard() {
           <ReviewTable />
         </div>
 
-        <div className="bg-white shadow-sm rounded-lg p-6">
+        {/* <div className="bg-white shadow-sm rounded-lg p-6">
           <h2 className="text-xl font-semibold mb-4">Performance Metrics</h2>
           <PerformanceTable />
-        </div>
+        </div> */}
       </div>
     </div>
   )

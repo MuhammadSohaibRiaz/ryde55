@@ -4,7 +4,7 @@ import { useState, useCallback, useEffect } from "react"
 import { MapPin, Search, ArrowLeft, X, CheckCircle2, Navigation, Edit2 } from "lucide-react"
 import MapView from "../map/MapView"
 import { motion, AnimatePresence } from "framer-motion"
-import { MAPS_CONFIG } from "@/config/maps"
+import { MAPS_CONFIG } from "@/components/map/maps"
 
 const BOOKING_STATES = {
   INITIAL: "initial",

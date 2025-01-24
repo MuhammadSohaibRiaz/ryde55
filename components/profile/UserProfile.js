@@ -6,7 +6,7 @@ import { Star, MapPin, Clock, CreditCard, Shield, History, Bell } from "lucide-r
 import NotificationBell from "../NotificationBell"
 import Link from "next/link"
 import { Button } from "@/components/ui/buttons"
-import { ArrowLeft,Car } from "lucide-react"
+import { ArrowLeft, Car } from "lucide-react"
 
 export default function UserProfile() {
   const [user, setUser] = useState({
@@ -79,16 +79,11 @@ export default function UserProfile() {
 
   return (
     <div className="container mx-auto p-4 max-w-4xl">
-      <div className="flex items-center justify-between mb-6">
-        <Link href="/main">
-          <Button variant="outline" className="flex items-center space-x-2">
-            <ArrowLeft className="w-4 h-4" />
-            <span>Back</span>
-          </Button>
-        </Link>
-        <h1 className="text-2xl font-bold text-gray-800">User Profile</h1>
-        <NotificationBell />
-      </div>
+      {/* <div className="flex items-center justify-center mb-6">
+        
+        <h1 className="text-2xl font-bold  text-gray-800">User Profile</h1>
+        
+      </div> */}
       <div className="bg-white shadow-lg rounded-lg">
         <div className="p-4 sm:p-6 md:p-8">
           <div className="flex flex-col sm:flex-row items-center justify-between mb-6">
@@ -110,28 +105,26 @@ export default function UserProfile() {
               </div>
             </div>
             <div className="flex flex-col sm:flex-row items-center space-y-2 sm:space-y-0 sm:space-x-2">
-        <Link
-          href="/register-driver"
-          className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 transition-colors w-full sm:w-auto flex items-center justify-center gap-2"
-        >
-          <Car className="w-4 h-4" />
-          Register as Driver
-        </Link>
-        <button
-          onClick={handleEmergencySOSClick}
-          className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600 transition-colors w-full sm:w-auto"
-        >
-          SOS
-        </button>
-        {!isEditing && (
-          <button
-            onClick={handleEdit}
-            className="px-4 py-2 bg-orange-500 text-white rounded hover:bg-orange-600 transition-colors w-full sm:w-auto"
-          >
-            Edit Profile
-          </button>
-        )}
-      </div>
+
+              <Link
+                href="/register-driver"
+                className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 transition-colors w-full sm:w-auto flex items-center justify-center gap-2"
+              >
+                <Car className="w-4 h-4" />
+                Register as Driver
+              </Link>
+              {!isEditing && (
+                <Button onClick={handleEdit} className="w-full sm:w-auto bg-orange-500 hover:bg-orange-600 text-white">
+                  Edit Profile
+                </Button>
+              )}
+              <button
+                onClick={handleEmergencySOSClick}
+                className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600 transition-colors w-full sm:w-auto"
+              >
+                SOS
+              </button>
+            </div>
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

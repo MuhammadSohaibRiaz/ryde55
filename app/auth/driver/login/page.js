@@ -21,7 +21,7 @@ export default function DriverLogin() {
     e.preventDefault()
     // Here you would typically handle the login logic
     // For now, we'll just redirect to the main application
-    router.push("/main")
+    router.push("/driver-profile")
   }
 
   return (

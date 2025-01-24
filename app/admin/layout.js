@@ -17,11 +17,17 @@ import {
   Bell,
   FileText,
   LogOut,
+  UserCog,
+  Menu,
+  X,
 } from "lucide-react"
+import { Button } from "@/components/ui/buttons"
+import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
 
 const sidebarItems = [
   { icon: LayoutDashboard, label: "Dashboard", href: "/admin" },
   { icon: Users, label: "Users", href: "/admin/users" },
+  { icon: UserCog, label: "Drivers", href: "/admin/drivers" },
   { icon: Car, label: "Rides", href: "/admin/rides" },
   { icon: Star, label: "Reviews", href: "/admin/reviews" },
   { icon: DollarSign, label: "Payments", href: "/admin/payments" },
@@ -33,10 +39,49 @@ const sidebarItems = [
   { icon: Settings, label: "Settings", href: "/admin/settings" },
 ]
 
+function SidebarContent({ pathname, onItemClick, handleLogout }) {
+  return (
+    <>
+      <Link href="/admin" className="flex items-center pl-2.5 mb-5">
+        <Image src="/logo.png" alt="Ryde5 Logo" width={180} height={35} priority className="object-contain" />
+      </Link>
+      <ul className="space-y-2 font-medium">
+        {sidebarItems.map((item) => {
+          const isActive = pathname === item.href
+          return (
+            <li key={item.label}>
+              <Link
+                href={item.href}
+                className={`flex items-center p-4 text-gray-300 rounded-lg hover:bg-gray-700 group ${
+                  isActive ? "bg-gray-700 text-white" : ""
+                }`}
+                onClick={onItemClick}
+              >
+                <item.icon className="w-5 h-5" />
+                <span className="ml-3">{item.label}</span>
+              </Link>
+            </li>
+          )
+        })}
+        <li className="pt-4 mt-4 border-t border-gray-700">
+          <button
+            onClick={handleLogout}
+            className="flex items-center w-full p-4 text-gray-300 rounded-lg hover:bg-gray-700 group"
+          >
+            <LogOut className="w-5 h-5" />
+            <span className="ml-3">Logout</span>
+          </button>
+        </li>
+      </ul>
+    </>
+  )
+}
+
 export default function AdminLayout({ children }) {
   const router = useRouter()
   const pathname = usePathname()
   const [isAuthenticated, setIsAuthenticated] = useState(false)
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
 
   useEffect(() => {
     const checkAuth = () => {
@@ -57,50 +102,44 @@ export default function AdminLayout({ children }) {
   }
 
   if (!isAuthenticated) {
-    return null // Or loading spinner
+    return null
   }
 
   return (
     <div className="min-h-screen bg-gray-100">
-      {/* Sidebar */}
-      <aside className="fixed top-0 left-0 z-40 w-64 h-screen bg-[#1F2937]">
+      {/* Mobile Header */}
+      <div className="md:hidden fixed top-0 left-0 right-0 h-16 bg-[#1F2937] z-50 px-4 flex items-center justify-between">
+        <Link href="/admin">
+          <Image src="/logo.png" alt="Ryde5 Logo" width={120} height={35} priority className="object-contain" />
+        </Link>
+        <Sheet open={isMobileMenuOpen} onOpenChange={setIsMobileMenuOpen}>
+          <SheetTrigger asChild>
+            <Button variant="ghost" size="icon" className="text-white">
+              <Menu className="h-6 w-6" />
+            </Button>
+          </SheetTrigger>
+          <SheetContent side="left" className="w-64 p-0 bg-[#1F2937]">
+            <div className="h-full px-3 py-4 overflow-y-auto">
+              <SidebarContent
+                pathname={pathname}
+                onItemClick={() => setIsMobileMenuOpen(false)}
+                handleLogout={handleLogout}
+              />
+            </div>
+          </SheetContent>
+        </Sheet>
+      </div>
+
+      {/* Desktop Sidebar */}
+      <aside className="hidden md:fixed md:flex top-0 left-0 z-40 w-64 h-screen bg-[#1F2937]">
         <div className="h-full px-3 py-4 overflow-y-auto">
-          <Link href="/admin" className="flex items-center pl-2.5 mb-5">
-            <Image src="/logo.png" alt="Ryde5 Logo" width={180} height={35} priority className="object-contain" />
-          </Link>
-          <ul className="space-y-2 font-medium">
-            {sidebarItems.map((item) => {
-              const isActive = pathname === item.href
-              return (
-                <li key={item.label}>
-                  <Link
-                    href={item.href}
-                    className={`flex items-center p-4 text-gray-300 rounded-lg hover:bg-gray-700 group ${
-                      isActive ? "bg-gray-700 text-white" : ""
-                    }`}
-                  >
-                    <item.icon className="w-5 h-5" />
-                    <span className="ml-3">{item.label}</span>
-                  </Link>
-                </li>
-              )
-            })}
-            <li className="pt-4 mt-4 border-t border-gray-700">
-              <button
-                onClick={handleLogout}
-                className="flex items-center w-full p-4 text-gray-300 rounded-lg hover:bg-gray-700 group"
-              >
-                <LogOut className="w-5 h-5" />
-                <span className="ml-3">Logout</span>
-              </button>
-            </li>
-          </ul>
+          <SidebarContent pathname={pathname} handleLogout={handleLogout} />
         </div>
       </aside>
 
-      {/* Main content */}
-      <div className="ml-64 p-4">
-        <div className="p-4 rounded-lg bg-white min-h-screen">{children}</div>
+      {/* Main Content */}
+      <div className="md:ml-64 p-4 mt-16 md:mt-0">
+        <div className="p-4 rounded-lg bg-white min-h-[calc(100vh-2rem)]">{children}</div>
       </div>
     </div>
   )
