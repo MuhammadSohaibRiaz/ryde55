@@ -293,7 +293,7 @@ export default function BookingForm() {
                 <div className="w-10 h-10 rounded-full bg-[#FFA500]/10 flex items-center justify-center">
                   <Navigation className="w-5 h-5 text-[#FFA500]" />
                 </div>
-                {/* <span className="font-medium">Choose on map</span> */}
+                <span className="font-medium">Choose on map</span>
               </button>
 
               {searchResults.map((result) => (
