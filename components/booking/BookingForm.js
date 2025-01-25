@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useCallback, useEffect } from "react"
-import { MapPin, Search, ArrowLeft, X, CheckCircle2, Navigation, Edit2 } from "lucide-react"
+import { MapPin,User, Search, ArrowLeft, X, CheckCircle2, Navigation, Edit2 } from "lucide-react"
 import MapView from "../map/MapView"
 import { motion, AnimatePresence } from "framer-motion"
 import { MAPS_CONFIG } from "@/components/map/maps"
@@ -167,7 +167,14 @@ export default function BookingForm() {
           userLocation={userLocation}
         />
       </div>
-
+      <div className="absolute top-4 right-4 z-30">
+        <button
+          onClick={() => (window.location.href = "/profile")}
+          className="p-2 bg-white rounded-full shadow-lg hover:bg-gray-50"
+        >
+          <User className="w-6 h-6 text-gray-700" />
+        </button>
+      </div>
       <AnimatePresence>
         {bookingState === BOOKING_STATES.INITIAL && !activeInput && (
           <motion.div

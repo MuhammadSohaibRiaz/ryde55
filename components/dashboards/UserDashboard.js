@@ -3,6 +3,9 @@
 import { useState } from "react"
 import { MapPin, Clock, CreditCard, Car } from "lucide-react"
 import dynamic from "next/dynamic"
+import { useRouter } from "next/router"
+import { useMotionValue } from "framer-motion"
+import { useNavigate } from 'react-router-dom';
 
 // Import Map component dynamically to avoid SSR issues
 const Map = dynamic(() => import("@/components/map/maps"), { ssr: false })
@@ -10,13 +13,21 @@ const Map = dynamic(() => import("@/components/map/maps"), { ssr: false })
 export default function UserDashboard({ user }) {
   const [selectedRide, setSelectedRide] = useState(null)
 
+   
+
+  // const router = useRouter(); // Initialize the useRouter hook
+
+  // const handleRequestRide = () => {
+  //   router.push('/main'); // Navigate to /main when the button is clicked
+  // };
+
   return (
     <div className="min-h-screen bg-[#F5F5F5]">
       {/* Map Section */}
       <div className="relative h-[60vh] w-full">
         <Map />
         <div className="absolute bottom-4 right-4 bg-white p-4 rounded-lg shadow-lg">
-          <button className="bg-[#6C63FF] text-white px-6 py-2 rounded-full">Request Ride</button>
+          <button  className="bg-[#6C63FF] text-white px-6 py-2 rounded-full">Request Ride</button>
         </div>
       </div>
 

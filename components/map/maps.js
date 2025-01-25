@@ -4,7 +4,7 @@ import { useEffect, useRef } from "react"
 import { Loader } from "@googlemaps/js-api-loader"
 
 const MAPS_CONFIG = {
-  apiKey: "AIzaSyCeiu1ZkE95Ler7aYMCifN0cKZ9Xa6EHb0",
+  apiKey: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY,
   libraries: ["places"],
   defaultCenter: { lat: 42.8864, lng: -78.8784 }, // Buffalo center
   defaultZoom: 13,
@@ -28,8 +28,8 @@ const MAPS_CONFIG = {
       lngMin: -78.91,
       lngMax: -78.75,
     },
-    movementRadius: 0.01, // Smaller radius for more realistic movement
-    updateInterval: 5000, // 5 seconds between movements
+    movementRadius: 0.01,
+    updateInterval: 5000,
   },
 }
 
@@ -40,8 +40,13 @@ export default function Maps() {
 
   useEffect(() => {
     const initMap = async () => {
+      if (!process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY) {
+        console.error("Google Maps API key is not set in environment variables")
+        return
+      }
+
       const loader = new Loader({
-        apiKey: MAPS_CONFIG.apiKey,
+        apiKey: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY,
         version: "weekly",
         libraries: MAPS_CONFIG.libraries,
       })
