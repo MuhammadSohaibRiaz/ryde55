@@ -4,29 +4,26 @@ import { useEffect, useRef, useState } from "react"
 import { Loader } from "@googlemaps/js-api-loader"
 import { MAPS_CONFIG } from "./maps"
 
-export default function MapView({ onRouteCalculated, onError, pickup, dropoff, isAdmin = false }) {
+export default function MapView({
+  onRouteCalculated,
+  onError,
+  pickup,
+  dropoff,
+  bookingState,
+  driverLocation,
+  userLocation,
+}) {
   const mapRef = useRef(null)
   const [map, setMap] = useState(null)
   const markersRef = useRef({
     pickup: null,
     dropoff: null,
+    driver: null,
     cars: [],
   })
-  const simulatedCarsRef = useRef([])
-  // Initialize with default value, will update from localStorage after mount
-  const [numSimulatedCars, setNumSimulatedCars] = useState(MAPS_CONFIG.simulatedCars.default)
-  const intervalsRef = useRef([])
+  const routeRef = useRef(null)
+  const animationRef = useRef(null)
 
-  // Safely access localStorage after mount
-  useEffect(() => {
-    const storedCars =
-      typeof window !== "undefined" ? Number.parseInt(window.localStorage.getItem("simulatedCars")) : null
-    if (storedCars !== null) {
-      setNumSimulatedCars(storedCars)
-    }
-  }, [])
-
-  // Initialize map
   useEffect(() => {
     if (!mapRef.current) return
 
@@ -43,155 +40,148 @@ export default function MapView({ onRouteCalculated, onError, pickup, dropoff, i
         ...MAPS_CONFIG.mapOptions,
       })
 
-      // Initialize services
-      const directionsService = new google.maps.DirectionsService()
-      const directionsRenderer = new google.maps.DirectionsRenderer({
-        map: mapInstance,
-        suppressMarkers: true,
-        polylineOptions: {
-          strokeColor: "#FFA500",
-          strokeWeight: 4,
-        },
-      })
-
-      // Initialize simulated cars
-      initializeSimulatedCars(google, mapInstance)
-
-      // Store references
       setMap(mapInstance)
 
-      // Handle route calculations
-      if (pickup && dropoff) {
-        calculateRoute(google, mapInstance, directionsService, directionsRenderer)
+      // Initialize simulated cars
+      const cars = []
+      for (let i = 0; i < 8; i++) {
+        const position = {
+          lat: MAPS_CONFIG.defaultCenter.lat + (Math.random() - 0.5) * 0.1,
+          lng: MAPS_CONFIG.defaultCenter.lng + (Math.random() - 0.5) * 0.1,
+        }
+        const car = new google.maps.Marker({
+          position,
+          map: mapInstance,
+          icon: {
+            path: google.maps.SymbolPath.CIRCLE,
+            scale: 8,
+            fillColor: "#4CAF50",
+            fillOpacity: 0.8,
+            strokeWeight: 2,
+            strokeColor: "#FFFFFF",
+          },
+        })
+        cars.push(car)
       }
+      markersRef.current.cars = cars
 
-      // Get user's location
-      if (navigator.geolocation) {
-        navigator.geolocation.getCurrentPosition(
-          (position) => {
-            const pos = {
-              lat: position.coords.latitude,
-              lng: position.coords.longitude,
-            }
-            mapInstance.setCenter(pos)
-          },
-          () => {
-            console.warn("Geolocation failed")
-          },
-        )
-      }
+      // Animate cars
+      setInterval(() => {
+        cars.forEach((car) => {
+          const currentPos = car.getPosition()
+          const newPos = {
+            lat: currentPos.lat() + (Math.random() - 0.5) * 0.002,
+            lng: currentPos.lng() + (Math.random() - 0.5) * 0.002,
+          }
+          car.setPosition(newPos)
+        })
+      }, 3000)
     })
 
     return () => {
-      // Cleanup markers and intervals
-      simulatedCarsRef.current.forEach((car) => car?.setMap(null))
-      intervalsRef.current.forEach(clearInterval)
-    }
-  }, [pickup, dropoff])
-
-  // Helper function to get random location within bounds
-  const getRandomLocation = () => {
-    return {
-      lat: MAPS_CONFIG.defaultCenter.lat + (Math.random() - 0.5) * 0.1,
-      lng: MAPS_CONFIG.defaultCenter.lng + (Math.random() - 0.5) * 0.1,
-    }
-  }
-
-  // Helper function to get random location within a radius
-  const getRandomLocationNearby = (center) => {
-    const radius = 0.01 // Smaller radius for more realistic movement
-    const lat = center.lat + (Math.random() - 0.5) * radius * 2
-    const lng = center.lng + (Math.random() - 0.5) * radius * 2
-    return { lat, lng }
-  }
-
-  // Initialize and manage simulated cars
-  const initializeSimulatedCars = (google, mapInstance) => {
-    // Clear existing cars and intervals
-    simulatedCarsRef.current.forEach((car) => car.setMap(null))
-    intervalsRef.current.forEach(clearInterval)
-    simulatedCarsRef.current = []
-    intervalsRef.current = []
-
-    // Create new cars
-    const numCars = isAdmin ? 12 : 8 // More cars visible in admin view
-    for (let i = 0; i < numCars; i++) {
-      const position = getRandomLocation()
-      const car = new google.maps.Marker({
-        position,
-        map: mapInstance,
-        icon: {
-          url: "/image.png",
-          scaledSize: new google.maps.Size(32, 32),
-          anchor: new google.maps.Point(16, 16),
-        },
-      })
-      simulatedCarsRef.current.push(car)
-
-      // Individual interval for each car for more natural movement
-      const interval = setInterval(
-        () => {
-          const currentPos = car.getPosition()
-          const newPos = getRandomLocationNearby({
-            lat: currentPos.lat(),
-            lng: currentPos.lng(),
-          })
-          animateMarkerTo(google, car, newPos)
-        },
-        5000 + Math.random() * 2000,
-      ) // Add randomness to intervals
-
-      intervalsRef.current.push(interval)
-    }
-  }
-
-  // Animate marker movement with easing
-  const animateMarkerTo = (google, marker, newPosition) => {
-    const startPosition = marker.getPosition()
-    const frames = 90 // More frames for smoother animation
-    const duration = 3000 // 3 seconds for smoother movement
-
-    const delta = {
-      lat: (newPosition.lat - startPosition.lat()) / frames,
-      lng: (newPosition.lng - startPosition.lng()) / frames,
-    }
-
-    let frame = 0
-
-    const animate = () => {
-      frame++
-
-      // Add easing for smoother movement
-      const progress = frame / frames
-      const easing = 1 - Math.pow(1 - progress, 3)
-
-      const lat = startPosition.lat() + delta.lat * frames * easing
-      const lng = startPosition.lng() + delta.lng * frames * easing
-
-      marker.setPosition(new google.maps.LatLng(lat, lng))
-
-      if (frame < frames) {
-        requestAnimationFrame(animate)
+      markersRef.current.cars.forEach((car) => car.setMap(null))
+      if (animationRef.current) {
+        cancelAnimationFrame(animationRef.current)
       }
     }
+  }, [])
 
-    animate()
-  }
+  useEffect(() => {
+    if (!map || !pickup || !dropoff) return
 
-  const calculateRoute = (google, mapInstance, directionsService, directionsRenderer) => {
+    // Clear existing markers and route
+    Object.values(markersRef.current).forEach((marker) => {
+      if (Array.isArray(marker)) {
+        marker.forEach((m) => m?.setMap(null))
+      } else {
+        marker?.setMap(null)
+      }
+    })
+    if (routeRef.current) routeRef.current.setMap(null)
+
+    const bounds = new google.maps.LatLngBounds()
+
+    // Set pickup marker
+    markersRef.current.pickup = new google.maps.Marker({
+      position: pickup.coordinates,
+      map: map,
+      icon: {
+        path: google.maps.SymbolPath.CIRCLE,
+        scale: 8,
+        fillColor: "#FFA500",
+        fillOpacity: 1,
+        strokeWeight: 2,
+        strokeColor: "#FFFFFF",
+      },
+    })
+    bounds.extend(pickup.coordinates)
+
+    // Set dropoff marker
+    markersRef.current.dropoff = new google.maps.Marker({
+      position: dropoff.coordinates,
+      map: map,
+      icon: {
+        path: google.maps.SymbolPath.CIRCLE,
+        scale: 8,
+        fillColor: "#4CAF50",
+        fillOpacity: 1,
+        strokeWeight: 2,
+        strokeColor: "#FFFFFF",
+      },
+    })
+    bounds.extend(dropoff.coordinates)
+
+    // Fit map to bounds
+    map.fitBounds(bounds)
+
+    // Calculate and animate route
+    const directionsService = new google.maps.DirectionsService()
+    const directionsRenderer = new google.maps.DirectionsRenderer({
+      map: map,
+      suppressMarkers: true,
+      polylineOptions: {
+        strokeColor: "#FFA500",
+        strokeWeight: 5,
+      },
+    })
+
     directionsService.route(
       {
-        origin: pickup,
-        destination: dropoff,
+        origin: pickup.coordinates,
+        destination: dropoff.coordinates,
         travelMode: google.maps.TravelMode.DRIVING,
       },
       (result, status) => {
         if (status === "OK") {
-          directionsRenderer.setDirections(result)
+          // Animate the route
+          const path = result.routes[0].overview_path
+          const polyline = new google.maps.Polyline({
+            path: [path[0]],
+            strokeColor: "#FFA500",
+            strokeWeight: 5,
+            map: map,
+          })
+
+          let currentIndex = 0
+          const animate = () => {
+            if (currentIndex < path.length - 1) {
+              currentIndex++
+              const currentPath = polyline.getPath()
+              currentPath.push(path[currentIndex])
+              animationRef.current = requestAnimationFrame(animate)
+            } else {
+              // Animation complete, show the full route
+              directionsRenderer.setDirections(result)
+              polyline.setMap(null)
+            }
+          }
+
+          animate()
+          routeRef.current = directionsRenderer
+
           const route = result.routes[0]
           const leg = route.legs[0]
-
-          onRouteCalculated?.({
+          onRouteCalculated({
             distance: leg.distance.text,
             duration: leg.duration.text,
             fare: calculateFare(leg.distance.value),
@@ -202,21 +192,31 @@ export default function MapView({ onRouteCalculated, onError, pickup, dropoff, i
         }
       },
     )
-  }
+  }, [map, pickup, dropoff, onRouteCalculated, onError])
 
-  const handleSimulatedCarsChange = (value) => {
-    if (typeof window !== "undefined") {
-      window.localStorage.setItem("simulatedCars", value.toString())
+  useEffect(() => {
+    if (!map || !driverLocation) return
+
+    if (markersRef.current.driver) {
+      markersRef.current.driver.setPosition(driverLocation)
+    } else {
+      markersRef.current.driver = new google.maps.Marker({
+        position: driverLocation,
+        map: map,
+        icon: {
+          path: google.maps.SymbolPath.CIRCLE,
+          scale: 8,
+          fillColor: "#2196F3",
+          fillOpacity: 0.8,
+          strokeWeight: 2,
+          strokeColor: "#FFFFFF",
+        },
+      })
     }
-    setNumSimulatedCars(value)
-    // Reinitialize cars with new count
-    if (map) {
-      initializeSimulatedCars(window.google, map)
-    }
-  }
+  }, [map, driverLocation])
 
   return (
-    <div className="relative w-full h-full">
+    <div className="w-full h-full">
       <div ref={mapRef} className="w-full h-full" />
     </div>
   )

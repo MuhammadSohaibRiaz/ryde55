@@ -21,14 +21,22 @@ export default function UserDashboard({ user }) {
   //   router.push('/main'); // Navigate to /main when the button is clicked
   // };
 
+  const handleRequestRide = () => {
+    window.location.href = "/main"; // Redirect to /main
+  };
   return (
     <div className="min-h-screen bg-[#F5F5F5]">
       {/* Map Section */}
       <div className="relative h-[60vh] w-full">
         <Map />
         <div className="absolute bottom-4 right-4 bg-white p-4 rounded-lg shadow-lg">
-          <button  className="bg-[#6C63FF] text-white px-6 py-2 rounded-full">Request Ride</button>
-        </div>
+        <button
+          onClick={handleRequestRide} // Add click handler
+          className="bg-[#6C63FF] text-white px-6 py-2 rounded-full"
+        >
+          Request Ride
+        </button>
+      </div>
       </div>
 
       {/* Recent Rides */}

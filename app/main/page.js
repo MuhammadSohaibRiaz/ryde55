@@ -12,13 +12,15 @@ export default function Home() {
   const [currentStep, setCurrentStep] = useState("booking")
   const [showSuccessPopup, setShowSuccessPopup] = useState(false)
   const [successMessage, setSuccessMessage] = useState("")
+  const [rideData, setRideData] = useState(null)
 
   const handleRequestRide = (formData) => {
+    setRideData(formData)
     setCurrentStep("payment")
   }
 
   const handlePaymentComplete = (paymentData) => {
-    setSuccessMessage("Payment successful!")
+    setSuccessMessage("Payment successful! Your ride is confirmed.")
     setShowSuccessPopup(true)
     setTimeout(() => {
       setShowSuccessPopup(false)
@@ -32,6 +34,7 @@ export default function Home() {
     setTimeout(() => {
       setShowSuccessPopup(false)
       setCurrentStep("booking")
+      setRideData(null)
     }, 2000)
   }
 
@@ -40,9 +43,16 @@ export default function Home() {
       <SplashScreen />
       <div className="flex flex-col min-h-screen bg-gray-50">
         <main className="flex-1 relative">
-          {currentStep === "booking" && <BookingForm onRequestRide={handleRequestRide} />}
-          {currentStep === "payment" && <PaymentForm onPaymentComplete={handlePaymentComplete} />}
-          {currentStep === "rating" && <RatingForm onSubmitReview={handleSubmitReview} />}
+          {currentStep === "booking" && (
+            <BookingForm
+              onRequestRide={handleRequestRide}
+              key={rideData ? "active" : "new"} // Force reset when completing the flow
+            />
+          )}
+          {currentStep === "payment" && (
+            <PaymentForm onPaymentComplete={handlePaymentComplete} amount={rideData?.fare} />
+          )}
+          {currentStep === "rating" && <RatingForm onSubmitReview={handleSubmitReview} rideData={rideData} />}
           {showSuccessPopup && <SuccessPopup message={successMessage} onClose={() => setShowSuccessPopup(false)} />}
         </main>
       </div>
