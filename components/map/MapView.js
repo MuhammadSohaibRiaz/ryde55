@@ -42,44 +42,57 @@ export default function MapView({
 
       setMap(mapInstance)
 
-      // Initialize simulated cars
+      // Initialize simulated cars on actual roads
+      const directionsService = new google.maps.DirectionsService()
       const cars = []
+
       for (let i = 0; i < 8; i++) {
-        const position = {
-          lat: MAPS_CONFIG.defaultCenter.lat + (Math.random() - 0.5) * 0.1,
-          lng: MAPS_CONFIG.defaultCenter.lng + (Math.random() - 0.5) * 0.1,
+        const origin = {
+          lat: MAPS_CONFIG.defaultCenter.lat + (Math.random() - 0.5) * 0.01,
+          lng: MAPS_CONFIG.defaultCenter.lng + (Math.random() - 0.5) * 0.01,
         }
-        const car = new google.maps.Marker({
-          position,
-          map: mapInstance,
-          icon: {
-            path: google.maps.SymbolPath.CIRCLE,
-            scale: 8,
-            fillColor: "#4CAF50",
-            fillOpacity: 0.8,
-            strokeWeight: 2,
-            strokeColor: "#FFFFFF",
+        
+        directionsService.route(
+          {
+            origin,
+            destination: pickup?.coordinates || MAPS_CONFIG.defaultCenter,
+            travelMode: google.maps.TravelMode.DRIVING,
           },
-        })
-        cars.push(car)
+          (result, status) => {
+            if (status === "OK" && result.routes.length) {
+              const path = result.routes[0].overview_path
+              const car = new google.maps.Marker({
+                position: path[0],
+                map: mapInstance,
+                icon: {
+                  path: google.maps.SymbolPath.CIRCLE,
+                  scale: 8,
+                  fillColor: "#4CAF50",
+                  fillOpacity: 0.8,
+                  strokeWeight: 2,
+                  strokeColor: "#FFFFFF",
+                },
+              })
+              cars.push({ marker: car, path, index: 0 })
+            }
+          },
+        )
       }
       markersRef.current.cars = cars
 
-      // Animate cars
+      // Move cars along the route
       setInterval(() => {
-        cars.forEach((car) => {
-          const currentPos = car.getPosition()
-          const newPos = {
-            lat: currentPos.lat() + (Math.random() - 0.5) * 0.002,
-            lng: currentPos.lng() + (Math.random() - 0.5) * 0.002,
+        cars.forEach((carObj) => {
+          if (carObj.index < carObj.path.length - 1) {
+            carObj.index++
+            carObj.marker.setPosition(carObj.path[carObj.index])
           }
-          car.setPosition(newPos)
         })
-      }, 3000)
+      }, 2000)
     })
 
     return () => {
-      markersRef.current.cars.forEach((car) => car.setMap(null))
+      markersRef.current.cars.forEach((car) => car.marker.setMap(null))
       if (animationRef.current) {
         cancelAnimationFrame(animationRef.current)
       }
@@ -89,7 +102,6 @@ export default function MapView({
   useEffect(() => {
     if (!map || !pickup || !dropoff) return
 
-    // Clear existing markers and route
     Object.values(markersRef.current).forEach((marker) => {
       if (Array.isArray(marker)) {
         marker.forEach((m) => m?.setMap(null))
@@ -101,7 +113,6 @@ export default function MapView({
 
     const bounds = new google.maps.LatLngBounds()
 
-    // Set pickup marker
     markersRef.current.pickup = new google.maps.Marker({
       position: pickup.coordinates,
       map: map,
@@ -116,7 +127,6 @@ export default function MapView({
     })
     bounds.extend(pickup.coordinates)
 
-    // Set dropoff marker
     markersRef.current.dropoff = new google.maps.Marker({
       position: dropoff.coordinates,
       map: map,
@@ -131,68 +141,8 @@ export default function MapView({
     })
     bounds.extend(dropoff.coordinates)
 
-    // Fit map to bounds
     map.fitBounds(bounds)
-
-    // Calculate and animate route
-    const directionsService = new google.maps.DirectionsService()
-    const directionsRenderer = new google.maps.DirectionsRenderer({
-      map: map,
-      suppressMarkers: true,
-      polylineOptions: {
-        strokeColor: "#FFA500",
-        strokeWeight: 5,
-      },
-    })
-
-    directionsService.route(
-      {
-        origin: pickup.coordinates,
-        destination: dropoff.coordinates,
-        travelMode: google.maps.TravelMode.DRIVING,
-      },
-      (result, status) => {
-        if (status === "OK") {
-          // Animate the route
-          const path = result.routes[0].overview_path
-          const polyline = new google.maps.Polyline({
-            path: [path[0]],
-            strokeColor: "#FFA500",
-            strokeWeight: 5,
-            map: map,
-          })
-
-          let currentIndex = 0
-          const animate = () => {
-            if (currentIndex < path.length - 1) {
-              currentIndex++
-              const currentPath = polyline.getPath()
-              currentPath.push(path[currentIndex])
-              animationRef.current = requestAnimationFrame(animate)
-            } else {
-              // Animation complete, show the full route
-              directionsRenderer.setDirections(result)
-              polyline.setMap(null)
-            }
-          }
-
-          animate()
-          routeRef.current = directionsRenderer
-
-          const route = result.routes[0]
-          const leg = route.legs[0]
-          onRouteCalculated({
-            distance: leg.distance.text,
-            duration: leg.duration.text,
-            fare: calculateFare(leg.distance.value),
-            pickupEta: Math.ceil((leg.duration.value / 60) * 0.3),
-          })
-        } else {
-          onError?.(new Error("Could not calculate route"))
-        }
-      },
-    )
-  }, [map, pickup, dropoff, onRouteCalculated, onError])
+  }, [map, pickup, dropoff])
 
   useEffect(() => {
     if (!map || !driverLocation) return
@@ -221,11 +171,3 @@ export default function MapView({
     </div>
   )
 }
-
-function calculateFare(distanceInMeters) {
-  const distanceInMiles = distanceInMeters / 1609.34
-  const baseRate = 2.5
-  const minimumFare = 5
-  return Math.max(minimumFare, baseRate * distanceInMiles).toFixed(2)
-}
-

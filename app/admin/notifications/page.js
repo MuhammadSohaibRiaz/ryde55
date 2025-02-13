@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { Bell, Settings, Trash2 } from "lucide-react"
+import { Bell, Settings, Trash2 } from 'lucide-react'
 
 export default function NotificationsPage() {
   const [notifications] = useState([
@@ -15,11 +15,11 @@ export default function NotificationsPage() {
     },
     {
       id: 2,
-      type: "alert",
-      title: "High Demand Alert",
-      message: "Surge pricing is now active in downtown area",
-      date: "2025-01-23T11:30:00",
-      read: true,
+      type: "info",
+      title: "New Driver Onboarding",
+      message: "10 new drivers have completed their onboarding process",
+      date: "2025-01-23T14:45:00",
+      read: false,
     },
     {
       id: 3,
@@ -65,7 +65,6 @@ export default function NotificationsPage() {
               <div className="flex items-start justify-between">
                 <div className="flex-1">
                   <h3 className="font-medium text-gray-900">{notification.title}</h3>
-                  <p className="mt-1 text-sm text-gray-500">{notification}</p>
                   <p className="mt-1 text-sm text-gray-500">{notification.message}</p>
                   <div className="mt-2 text-xs text-gray-400">
                     {new Date(notification.date).toLocaleString()}
@@ -82,4 +81,3 @@ export default function NotificationsPage() {
     </div>
   )
 }
-
