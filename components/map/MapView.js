@@ -15,6 +15,7 @@ export default function MapView({
 }) {
   const mapRef = useRef(null)
   const [map, setMap] = useState(null)
+  const [google, setGoogle] = useState(null)
   const markersRef = useRef({
     pickup: null,
     dropoff: null,
@@ -33,8 +34,9 @@ export default function MapView({
       libraries: MAPS_CONFIG.libraries,
     })
 
-    loader.load().then((google) => {
-      const mapInstance = new google.maps.Map(mapRef.current, {
+    loader.load().then((googleInstance) => {
+      setGoogle(googleInstance)
+      const mapInstance = new googleInstance.maps.Map(mapRef.current, {
         center: MAPS_CONFIG.defaultCenter,
         zoom: MAPS_CONFIG.defaultZoom,
         ...MAPS_CONFIG.mapOptions,
@@ -43,7 +45,7 @@ export default function MapView({
       setMap(mapInstance)
 
       // Initialize simulated cars on actual roads
-      const directionsService = new google.maps.DirectionsService()
+      const directionsService = new googleInstance.maps.DirectionsService()
       const cars = []
 
       for (let i = 0; i < 8; i++) {
@@ -56,16 +58,16 @@ export default function MapView({
           {
             origin,
             destination: pickup?.coordinates || MAPS_CONFIG.defaultCenter,
-            travelMode: google.maps.TravelMode.DRIVING,
+            travelMode: googleInstance.maps.TravelMode.DRIVING,
           },
           (result, status) => {
             if (status === "OK" && result.routes.length) {
               const path = result.routes[0].overview_path
-              const car = new google.maps.Marker({
+              const car = new googleInstance.maps.Marker({
                 position: path[0],
                 map: mapInstance,
                 icon: {
-                  path: google.maps.SymbolPath.CIRCLE,
+                  path: googleInstance.maps.SymbolPath.CIRCLE,
                   scale: 8,
                   fillColor: "#4CAF50",
                   fillOpacity: 0.8,
@@ -92,7 +94,7 @@ export default function MapView({
     })
 
     return () => {
-      markersRef.current.cars.forEach((car) => car.marker.setMap(null))
+      markersRef.current.cars.forEach((car) => car.marker && car.marker.setMap(null))
       if (animationRef.current) {
         cancelAnimationFrame(animationRef.current)
       }
@@ -100,19 +102,24 @@ export default function MapView({
   }, [])
 
   useEffect(() => {
-    if (!map || !pickup || !dropoff) return
+    if (!map || !google || !pickup || !dropoff) return
 
-    Object.values(markersRef.current).forEach((marker) => {
-      if (Array.isArray(marker)) {
-        marker.forEach((m) => m?.setMap(null))
-      } else {
-        marker?.setMap(null)
+    // Clear existing markers and route
+    Object.entries(markersRef.current).forEach(([key, value]) => {
+      if (Array.isArray(value)) {
+        value.forEach((item) => item && item.marker && item.marker.setMap(null))
+      } else if (value && typeof value.setMap === 'function') {
+        value.setMap(null)
       }
     })
-    if (routeRef.current) routeRef.current.setMap(null)
+
+    if (routeRef.current && typeof routeRef.current.setMap === 'function') {
+      routeRef.current.setMap(null)
+    }
 
     const bounds = new google.maps.LatLngBounds()
 
+    // Set pickup marker
     markersRef.current.pickup = new google.maps.Marker({
       position: pickup.coordinates,
       map: map,
@@ -127,6 +134,7 @@ export default function MapView({
     })
     bounds.extend(pickup.coordinates)
 
+    // Set dropoff marker
     markersRef.current.dropoff = new google.maps.Marker({
       position: dropoff.coordinates,
       map: map,
@@ -141,11 +149,62 @@ export default function MapView({
     })
     bounds.extend(dropoff.coordinates)
 
+    // Calculate and display route
+    const directionsService = new google.maps.DirectionsService()
+
+    directionsService.route(
+      {
+        origin: pickup.coordinates,
+        destination: dropoff.coordinates,
+        travelMode: google.maps.TravelMode.DRIVING,
+      },
+      (result, status) => {
+        if (status === "OK") {
+          const route = result.routes[0]
+          const path = route.overview_path
+
+          // Create a polyline for the route
+          const polyline = new google.maps.Polyline({
+            path: [],
+            geodesic: true,
+            strokeColor: "#FFA500",
+            strokeOpacity: 0.8,
+            strokeWeight: 5,
+            map: map,
+          })
+
+          routeRef.current = polyline
+
+          // Animate the polyline
+          let step = 0
+          const numSteps = 100
+          const animationStep = () => {
+            const progress = step / numSteps
+            const currentPath = path.slice(0, Math.floor(progress * path.length))
+            polyline.setPath(currentPath)
+
+            if (step < numSteps) {
+              step++
+              animationRef.current = requestAnimationFrame(animationStep)
+            }
+          }
+          animationRef.current = requestAnimationFrame(animationStep)
+          
+          // Calculate and display route information
+          const distance = route.legs[0].distance.text
+          const duration = route.legs[0].duration.text
+          onRouteCalculated({ distance, duration })
+        } else {
+          onError("Failed to calculate route")
+        }
+      }
+    )
+
     map.fitBounds(bounds)
-  }, [map, pickup, dropoff])
+  }, [map, google, pickup, dropoff, onRouteCalculated, onError])
 
   useEffect(() => {
-    if (!map || !driverLocation) return
+    if (!map || !google || !driverLocation) return
 
     if (markersRef.current.driver) {
       markersRef.current.driver.setPosition(driverLocation)
@@ -163,7 +222,7 @@ export default function MapView({
         },
       })
     }
-  }, [map, driverLocation])
+  }, [map, google, driverLocation])
 
   return (
     <div className="w-full h-full">
